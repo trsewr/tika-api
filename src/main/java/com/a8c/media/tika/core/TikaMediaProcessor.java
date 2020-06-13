@@ -181,6 +181,7 @@ public class TikaMediaProcessor {
                     metaData.put(name, metadata.get(name));
                 }
                 mediaProcessingResponse.setMetaData(metaData);
+                mediaProcessingResponse.setOcrIncluded(ocrEnabled);
             }
             return mediaProcessingResponse;
 

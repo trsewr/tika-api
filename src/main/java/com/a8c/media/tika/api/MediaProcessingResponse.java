@@ -21,10 +21,5 @@ public class MediaProcessingResponse {
     @Getter
     @Setter
     @JsonProperty
-    private String ocrText;
-
-    @Getter
-    @Setter
-    @JsonProperty
     private Map<String, String> metaData;
 }
