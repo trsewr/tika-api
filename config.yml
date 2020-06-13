@@ -1,0 +1,14 @@
+sources:
+  - https://static.googleusercontent.com/
+  - https://www.a8c.com
+  - https://file-examples.com/
+  - http://assets.en.oreilly.com
+
+maxProcessingThreads: 10
+logging:
+  level: INFO
+  loggers:
+    com.a8c.media.tika: DEBUG
+metrics:
+  frequency: 1 minute
+
