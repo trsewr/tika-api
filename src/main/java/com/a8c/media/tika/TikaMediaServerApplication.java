@@ -29,7 +29,8 @@ public class TikaMediaServerApplication extends Application<TikaMediaServerConfi
     @Override
     public void run(final TikaMediaServerConfiguration configuration, final Environment environment) {
         final TikaMediaServerHealthCheck healthCheck = new TikaMediaServerHealthCheck();
-        ExecutorService executorService = environment.lifecycle().executorService("tikaapi").maxThreads(10).build();
+        ExecutorService executorService =
+                environment.lifecycle().executorService("tikaapi").maxThreads(configuration.maxProcessingThreads).build();
         final MediaProcessorModule mediaProcessorModule = new MediaProcessorModule(executorService, configuration);
         Injector injector = Guice.createInjector(mediaProcessorModule);
 
