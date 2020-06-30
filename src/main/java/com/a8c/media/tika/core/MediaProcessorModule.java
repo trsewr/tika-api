@@ -12,6 +12,9 @@ import org.apache.tika.parser.AutoDetectParser;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
+/**
+ * Guice module used for Dependency Injection
+ */
 @Slf4j
 public class MediaProcessorModule extends AbstractModule {
     final ExecutorService executorService;
@@ -22,6 +25,8 @@ public class MediaProcessorModule extends AbstractModule {
         this.tikaMediaServerConfiguration = serverConfiguration;
     }
 
+    // Per tika manual,AutoDetectParser is thread safe
+    // Construction of this object is time consuming, so trying to leverage a static  ( to be load tested)
     static AutoDetectParser autoDetectParser = new AutoDetectParser(TikaConfig.getDefaultConfig());
 
     @Override
@@ -30,15 +35,17 @@ public class MediaProcessorModule extends AbstractModule {
                 .toProvider(() -> tikaMediaServerConfiguration.getSources());
 
     }
+
+
     @Provides
     TikaMediaProcessor provideTikaMediaProcessor() {
         log.info("ocr timeout -" + tikaMediaServerConfiguration.getDefaultOCRTimeout());
-        log.info("max processing threads -" + tikaMediaServerConfiguration.getMaxProcessingThreads());
+        log.info("max processing threads -" + tikaMediaServerConfiguration.getMaxProcessingQueueDepth());
         log.info("default processing timeout -" + tikaMediaServerConfiguration.getDefaultProcessingTimeout());
         return new TikaMediaProcessor.Builder()
                 .withDefaultOCRTimeout(tikaMediaServerConfiguration.getDefaultOCRTimeout())
                 .withExecutorService(executorService)
-                .withMaxProcessingThreads(tikaMediaServerConfiguration.getMaxProcessingThreads())
+                .withMaxProcessingQueueDepth(tikaMediaServerConfiguration.getMaxProcessingQueueDepth())
                 .withDefaultProcessingTimeout(tikaMediaServerConfiguration.getDefaultProcessingTimeout())
                 .withTikaParser(autoDetectParser)
                 .withAllowedSources(tikaMediaServerConfiguration.getSources())
