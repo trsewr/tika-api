@@ -8,5 +8,5 @@ public class MediaDetectionResponse {
     @Getter
     @Setter
     @JsonProperty
-    public String mimeType;
+    private String mimeType;
 }

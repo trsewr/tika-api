@@ -1,40 +1,33 @@
 package com.a8c.media.tika.core;
 
 import com.a8c.media.tika.api.MediaProcessingResponse;
-import com.google.common.collect.Lists;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tika.Tika;
-import org.apache.tika.config.TikaConfig;
-import org.apache.tika.detect.Detector;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.mime.ProbabilisticMimeDetectionSelector;
 import org.apache.tika.parser.AbstractParser;
-import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.ocr.TesseractOCRConfig;
 import org.apache.tika.parser.pdf.PDFParserConfig;
 import org.apache.tika.sax.BodyContentHandler;
 import org.xml.sax.SAXException;
 
-import java.io.FileInputStream;
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
+
+/**
+ * <p> Wrapper to Apache Tika Library, to extract text from Inputstream </p>
+ */
 @Slf4j
 public class TikaMediaProcessor {
     @Getter
@@ -42,7 +35,7 @@ public class TikaMediaProcessor {
     @Getter
     private long defaultOCRTimeOut;
     @Getter
-    private int maxProcessingThreads;
+    private int maxProcessingQueueDepth;
     @Getter
     private ExecutorService executorService;
     @Getter
@@ -52,18 +45,14 @@ public class TikaMediaProcessor {
     @Getter
     private List<String> allowedSources = new ArrayList<>();
 
-
-    private void isExecutorBusy() {
-        if (((ThreadPoolExecutor) executorService).getActiveCount() > maxProcessingThreads) {
-            throw new RejectedExecutionException("Too Busy");
-        }
-    }
-
+    /**
+     * Builder helper to return TikaMediaProcessor
+     */
     public static class Builder {
         @Getter
         private ExecutorService executorService;
         @Getter
-        private int maxProcessingThreads;
+        private int maxProcessingQueueDepth;
         @Getter
         private long defaultOCRTimeout;
         @Getter
@@ -80,8 +69,8 @@ public class TikaMediaProcessor {
             return this;
         }
 
-        public Builder withMaxProcessingThreads(int maxProcessingThreads) {
-            this.maxProcessingThreads = maxProcessingThreads;
+        public Builder withMaxProcessingQueueDepth(int maxProcessingQueueDepth) {
+            this.maxProcessingQueueDepth = maxProcessingQueueDepth;
             return this;
         }
 
@@ -105,21 +94,14 @@ public class TikaMediaProcessor {
             return this;
         }
 
-
-        public Builder withDefaults() {
-            this.executorService = new ThreadPoolExecutor(5, 10, 100, TimeUnit.SECONDS, new LinkedBlockingDeque<>());
-            this.maxProcessingThreads = 10;
-            this.defaultOCRTimeout = 10 * 10_00;
-            this.defaultProcessingTimeout = 10_00;
-            this.allowedSources = Lists.newArrayList("*");
-            this.parser = new AutoDetectParser(TikaConfig.getDefaultConfig());
-            return this;
-        }
-
+        /**
+         * Returns TikaMediaProcessor based on supplied params
+         * @return
+         */
         public TikaMediaProcessor build() {
             TikaMediaProcessor tikaMediaProcessor = new TikaMediaProcessor();
             tikaMediaProcessor.executorService = this.executorService;
-            tikaMediaProcessor.maxProcessingThreads = this.maxProcessingThreads;
+            tikaMediaProcessor.maxProcessingQueueDepth = this.maxProcessingQueueDepth;
             tikaMediaProcessor.defaultOCRTimeOut = this.defaultOCRTimeout;
             tikaMediaProcessor.defaultProcessingTimeout = this.defaultProcessingTimeout;
             tikaMediaProcessor.defaultParser = this.parser;
@@ -131,15 +113,8 @@ public class TikaMediaProcessor {
     private TikaMediaProcessor() {
     }
 
-    public MediaProcessingResponse processMedia(String url, String mimeType, long timeOut, boolean ocrEnabled, List<String> langs)
-            throws InterruptedException, ExecutionException, TimeoutException {
-        isExecutorBusy();
-        Future<MediaProcessingResponse> future = executorService.submit(() -> processMediaInternal(url, mimeType, ocrEnabled, langs));
-        long ttl = timeOut == -1 ? defaultProcessingTimeout : timeOut;
-        return future.get(ttl, TimeUnit.MILLISECONDS);
-
-    }
-
+    // Sets parser context for OCR - will throw exception in case of invalid language
+    // or language model missing in server
     private void setParserContextForOCR(ParseContext context, List<String> langs) {
         PDFParserConfig pdfConfig = new PDFParserConfig();
         pdfConfig.setExtractInlineImages(true);
@@ -159,19 +134,28 @@ public class TikaMediaProcessor {
         context.set(TesseractOCRConfig.class, tesserConfig);
     }
 
-    private MediaProcessingResponse processMediaInternal(String url, String mimeType, boolean ocrEnabled, List<String> langs) throws TikaException, SAXException, IOException {
+    /**
+     * <p> Processes inputstream to extract text content, optionally using OCR</p>
+     * @param inputStream inputstream
+     * @param ocrEnabled controls whether OCR is used
+     * @param langs language models to be used for OCR
+     * @return
+     * @throws TikaException
+     * @throws SAXException
+     * @throws IOException
+     * @throws URISyntaxException
+     */
+    public MediaProcessingResponse processMedia(InputStream inputStream, boolean ocrEnabled, List<String> langs)
+            throws TikaException, SAXException, IOException, URISyntaxException {
         MediaProcessingResponse mediaProcessingResponse = new MediaProcessingResponse();
-        LocalFSCacheContext localFSCacheContext = new LocalFSCacheContext(allowedSources);
         try {
-            localFSCacheContext.download(url);
             BodyContentHandler saxStream = new BodyContentHandler();
             Metadata metadata = new Metadata();
             ParseContext context = new ParseContext();
 
-            try (InputStream stream = new FileInputStream(localFSCacheContext.tempFile)) {
-                log.info("Input stream obtained, parsing with tika -" + url);
+            try (InputStream stream = new BufferedInputStream(inputStream)) {
                 if (ocrEnabled) {
-                    log.info("OCR is enabled in request , setting OCR context params - " + url);
+                    log.info("OCR is enabled in request , setting OCR context params ");
                     setParserContextForOCR(context, langs);
                 }
                 defaultParser.parse(stream, saxStream, metadata, context);
@@ -186,36 +170,25 @@ public class TikaMediaProcessor {
             return mediaProcessingResponse;
 
         } catch (Throwable e) {
-            log.error("Error in processing with Tika - " + url, e);
+            log.error("Error in processing with Tika - ", e);
             throw e;
         } finally {
-            localFSCacheContext.close();
+            inputStream.close();
         }
     }
 
-    public String detectMimeType(String url, long timeout) throws InterruptedException, ExecutionException, TimeoutException {
-        isExecutorBusy();
-        Future<String> future = executorService.submit(() -> {
-            try {
-                return detectMimeTypeInternal(url);
-            } catch (Throwable ex) {
-                log.error("Error in detecting MimeType for " + url, ex);
-                throw ex;
-            }
-        });
-        long ttl = timeout == -1 ? defaultProcessingTimeout : timeout;
-        return future.get(ttl, TimeUnit.MILLISECONDS);
-    }
-
-    private String detectMimeTypeInternal(String url) throws IOException {
-        LocalFSCacheContext localFSCacheContext = new LocalFSCacheContext(allowedSources);
+    /**
+     * <p>Detects mimetype of inputstream</p>
+     * @param inputStream
+     * @return
+     * @throws IOException
+     */
+    public String detectMimeType(InputStream inputStream) throws IOException {
         try {
-            localFSCacheContext.download(url);
-            log.info("Downloaded for mime type detection -" + url);
-            Detector detector = new ProbabilisticMimeDetectionSelector();
-            return new Tika().detect(localFSCacheContext.tempFile);
+            log.info("Downloaded for mime type detection ");
+            return new Tika().detect(inputStream);
         } finally {
-            localFSCacheContext.close();
+            inputStream.close();
         }
     }
 

@@ -5,14 +5,20 @@ import lombok.Getter;
 import lombok.Setter;
 
 public class MediaDetectionRequest {
+
     @Getter
     @Setter
     @JsonProperty
-    private String resoucePath;
+    private String resourcePath;
 
     @Getter
     @Setter
     @JsonProperty
     private long processingTimeout;
+
+    @Getter
+    @Setter
+    @JsonProperty
+    private long fileDownloadTimeout = -1;
 
 }

@@ -7,15 +7,11 @@ import lombok.Setter;
 import java.util.ArrayList;
 
 public class MediaProcessingRequest {
-    @Getter
-    @Setter
-    @JsonProperty
-    private String mimeType;
 
     @Getter
     @Setter
     @JsonProperty
-    private String resoucePath;
+    private String resourcePath;
 
     @Getter
     @Setter
@@ -25,12 +21,12 @@ public class MediaProcessingRequest {
     @Getter
     @Setter
     @JsonProperty
-    private long processingTimeout;
+    private long processingTimeout = 1000_0;
 
     @Getter
     @Setter
     @JsonProperty
-    private long ocrProcessingTimeout;
+    private long fileDownloadTimeout = 1000_0;
 
     /*
     Tesseract language codes are moslty ISO-639-2 (i.e,  `eng` not `en` for english)
@@ -41,8 +37,4 @@ public class MediaProcessingRequest {
     @JsonProperty("ocrLangs")
     private ArrayList<String> ocrLangs;
 
-    @Getter
-    @Setter
-    @JsonProperty
-    private boolean autoDetectType;
 }

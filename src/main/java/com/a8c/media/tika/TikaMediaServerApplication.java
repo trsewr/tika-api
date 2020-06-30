@@ -1,6 +1,8 @@
 package com.a8c.media.tika;
 
+import com.a8c.media.tika.core.MediaFetcher;
 import com.a8c.media.tika.core.MediaProcessorModule;
+import com.a8c.media.tika.core.TikaMediaProcessor;
 import com.a8c.media.tika.health.TikaMediaServerHealthCheck;
 import com.a8c.media.tika.resources.TikaMediaProcessingResource;
 import com.a8c.media.tika.resources.TikaMetaInformationResource;
@@ -12,6 +14,7 @@ import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingDeque;
 
 public class TikaMediaServerApplication extends Application<TikaMediaServerConfiguration> {
 
@@ -21,22 +24,36 @@ public class TikaMediaServerApplication extends Application<TikaMediaServerConfi
 
     public void initialize(Bootstrap<TikaMediaServerConfiguration> bootstrap) {
     }
+
     @Override
     public String getName() {
         return "TikaMediaServer";
     }
 
+    /**
+     * <p>Dropwizard app entry point, Initialize dependency injection module</p>
+     * <p> Registers all resources</p>
+     * <p>Registers health check and metrics endpoints</p>
+     *
+     * @param configuration Configuration, app generates it by parsing config.yml given as part of CLI
+     * @param environment   Servlet context provided by dropwizard
+     */
     @Override
     public void run(final TikaMediaServerConfiguration configuration, final Environment environment) {
-        final TikaMediaServerHealthCheck healthCheck = new TikaMediaServerHealthCheck();
         ExecutorService executorService =
-                environment.lifecycle().executorService("tikaapi").maxThreads(configuration.maxProcessingThreads).build();
+                environment.lifecycle().executorService("tikaapi").maxThreads(configuration.getMaxProcessingThreads())
+                        .workQueue(new LinkedBlockingDeque<>(configuration.getMaxProcessingQueueDepth())).build();
+        final TikaMediaServerHealthCheck healthCheck = new TikaMediaServerHealthCheck(executorService,configuration);
         final MediaProcessorModule mediaProcessorModule = new MediaProcessorModule(executorService, configuration);
         Injector injector = Guice.createInjector(mediaProcessorModule);
-
-        environment.getAdminContext().addServlet(MetricsServlet.class,"/metrics");
+        environment.getAdminContext().addServlet(MetricsServlet.class, "/metrics");
         environment.healthChecks().register("health", healthCheck);
-        environment.jersey().register(injector.getInstance(TikaMediaProcessingResource.class));
+        TikaMediaProcessingResource tikaMediaProcessingResource =
+                new TikaMediaProcessingResource(injector.getInstance(TikaMediaProcessor.class),
+                        new MediaFetcher(configuration.getSources()),
+                        configuration,
+                        executorService);
+        environment.jersey().register(tikaMediaProcessingResource);
         environment.jersey().register(injector.getInstance(TikaMetaInformationResource.class));
     }
 
