@@ -130,7 +130,7 @@ public class MediaFetcher {
                         });
                 Response response = future.get(timeout, TimeUnit.MILLISECONDS);
                 if (response.getStatusCode() == javax.ws.rs.core.Response.Status.OK.getStatusCode()) {
-                    log.info(mediaProcessingRequest.getResourcePath() + "  was too large to process with " +
+                    log.info(mediaProcessingRequest.getResourcePath() +
                             "content-length " + contentLength[0] + " , content-Length value present in header => " +
                             hadContentLengthHeader[0]);
                     MediaProcessingResponse mediaProcessingResponse = mediaProcessor
@@ -149,7 +149,7 @@ public class MediaFetcher {
                             .resume(javax.ws.rs.core.Response.serverError().status(response.getStatusCode()).build());
                 }
             } catch (TimeoutException toe) {
-                log.error("Timeout exception whie downloading file " + toe.getMessage());
+                log.error("Timeout exception while downloading file " + toe.getMessage());
                 asyncResponse.resume(javax.ws.rs.core.Response.serverError()
                         .status(javax.ws.rs.core.Response.Status.REQUEST_TIMEOUT).build());
             } catch (Throwable throwable) {

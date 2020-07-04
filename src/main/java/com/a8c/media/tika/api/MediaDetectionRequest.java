@@ -14,7 +14,7 @@ public class MediaDetectionRequest {
     @Getter
     @Setter
     @JsonProperty
-    private long processingTimeout;
+    private long processingTimeout = -1;
 
     @Getter
     @Setter

@@ -1,6 +1,7 @@
 package com.a8c.media.tika.core;
 
 import com.a8c.media.tika.api.MediaProcessingResponse;
+import com.google.common.collect.Lists;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -96,6 +97,7 @@ public class TikaMediaProcessor {
 
         /**
          * Returns TikaMediaProcessor based on supplied params
+         *
          * @return
          */
         public TikaMediaProcessor build() {
@@ -120,7 +122,8 @@ public class TikaMediaProcessor {
         pdfConfig.setExtractInlineImages(true);
         TesseractOCRConfig tesserConfig = new TesseractOCRConfig();
         String ocrLangs = "eng";
-        if (langs.size() == 0) {
+        if ((langs == null) || (langs.size() == 0)) {
+            langs = Lists.newArrayList("eng");
             log.info("no OCR lang was set , defaulting to eng`");
         }
         if (langs.size() == 1) {
@@ -136,9 +139,10 @@ public class TikaMediaProcessor {
 
     /**
      * <p> Processes inputstream to extract text content, optionally using OCR</p>
+     *
      * @param inputStream inputstream
-     * @param ocrEnabled controls whether OCR is used
-     * @param langs language models to be used for OCR
+     * @param ocrEnabled  controls whether OCR is used
+     * @param langs       language models to be used for OCR
      * @return
      * @throws TikaException
      * @throws SAXException
@@ -179,6 +183,7 @@ public class TikaMediaProcessor {
 
     /**
      * <p>Detects mimetype of inputstream</p>
+     *
      * @param inputStream
      * @return
      * @throws IOException
