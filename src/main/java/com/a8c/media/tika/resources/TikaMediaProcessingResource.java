@@ -95,7 +95,9 @@ public class TikaMediaProcessingResource {
     @Metered
     public void processMedia(MediaProcessingRequest mediaProcessingRequest, @Suspended AsyncResponse asyncResponse)
             throws IOException, URISyntaxException {
-        setTimeoutHandler(asyncResponse, getRequestProcessingTimeout(mediaProcessingRequest.getProcessingTimeout(),
+        setTimeoutHandler(asyncResponse,
+                getRequestProcessingTimeout(getRequestProcessingTimeout(mediaProcessingRequest.getProcessingTimeout()
+                        ,mediaProcessingRequest.isUseOCR()),
                 mediaProcessingRequest.isUseOCR()));
         executorService.submit(new Runnable() {
             @SneakyThrows

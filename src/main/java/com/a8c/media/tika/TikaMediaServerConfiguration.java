@@ -10,7 +10,7 @@ import java.util.ArrayList;
 
 public class TikaMediaServerConfiguration extends Configuration {
 
-    static long DEFAULT_TIME_OUT = 10 * 100_0;
+    static long DEFAULT_TIME_OUT = 30 * 100_0;
     @JsonProperty
     @Getter
     @Min(10) long defaultProcessingTimeout = DEFAULT_TIME_OUT;
@@ -21,7 +21,7 @@ public class TikaMediaServerConfiguration extends Configuration {
 
     @JsonProperty
     @Getter
-    @Min(10) long defaultOCRTimeout = DEFAULT_TIME_OUT * 10;
+    @Min(10) long defaultOCRTimeout = DEFAULT_TIME_OUT * 5;
 
     @JsonProperty
     @Getter
